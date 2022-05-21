@@ -1,12 +1,18 @@
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import { Program, Provider, web3 } from '@project-serum/anchor';
 import React, { useEffect, useState } from 'react';
+import { Buffer } from 'buffer';
 import twitterLogo from './assets/twitter-logo.svg';
 import './App.css';
 import idl from './idl.json';
+import kp from './keypair.json';
 
 const { SystemProgram, Keypair } = web3
-let baseAccount = Keypair.generate()
+window.Buffer = Buffer;
+
+const arr = Object.values(kp._keypair.secretKey)
+const secretKey = new Uint8Array(arr)
+const baseAccount = web3.Keypair.fromSecretKey(secretKey)
 
 const programID = new PublicKey(idl.metadata.address)
 const network = clusterApiUrl('devnet')
@@ -60,8 +66,22 @@ const App = () => {
   const sendGif = async () => {
     if (inputValue.length > 0) {
       console.log('Gif link: ', inputValue)
-      setGifList([...gifList, inputValue])
-      setInputValue('')
+      
+      try {
+        const provider = getProvider()
+        const program = new Program(idl, programID, provider)
+        await program.rpc.addGif(inputValue, {
+          accounts: {
+            baseAccount: baseAccount.publicKey,
+            user: provider.wallet.publicKey
+          }
+        })
+        console.log("GIF successfully sent to program", inputValue)
+        await getGifList()
+        setInputValue('')
+      } catch (error) {
+        console.error(error)
+      }
     } else {
       console.log('Empty input. Try again!')
     }
@@ -78,6 +98,25 @@ const App = () => {
     return provider;
   }
 
+  const createGifAccount = async () => {
+    try {
+      const provider = getProvider()
+      const program = new Program(idl, programID, provider)
+      await program.rpc.startStuffOff({
+        accounts: {
+          baseAccount: baseAccount.publicKey,
+          user: provider.wallet.publicKey,
+          systemProgram: SystemProgram.programId
+        },
+        signers: [baseAccount]
+      })
+      console.log("Created a new BaseAccount w/ account: ", baseAccount.publicKey.toString())
+      await getGifList()
+    } catch (error) {
+      console.log("Error creating BaseAccount account:", error)
+    }
+  }
+
   const renderNotConnectedContainer = () => (
     <button
       className="cta-button connect-wallet-button"
@@ -86,25 +125,35 @@ const App = () => {
     </button>
   )
 
-  const renderConnectedContainer = () => (
-    <div className="connected-container">
-      <form
-        onSubmit={event => {
-          event.preventDefault()
-          sendGif()
-        }} >
-          <input type="text" placeholder="Enter git link!" value={inputValue} onChange={onInputChange}/>
-          <button type="submit" className="cta-button submit-gif-button">Submit</button>
-      </form>
-      <div className="gif-grid">
-        {gifList.map(gif => (
-          <div className="gif-item" key={gif}>
-            <img src={gif} alt={gif} />
-          </div>
-        ))}
+  const renderConnectedContainer = () => {
+    if (gifList === null ) {
+      return <div className="connected-container">
+        <button className='cta-button submit-gif-button' onClick={createGifAccount}>
+          Do One-Time Initialization for GIF Program Account
+        </button>
       </div>
-    </div>
-  )
+    } else {
+      return (
+        <div className="connected-container">
+          <form
+            onSubmit={event => {
+              event.preventDefault()
+              sendGif()
+            }} >
+              <input type="text" placeholder="Enter git link!" value={inputValue} onChange={onInputChange}/>
+              <button type="submit" className="cta-button submit-gif-button">Submit</button>
+          </form>
+          <div className="gif-grid">
+            {gifList.map((item, index) => (
+              <div className="gif-item" key={index}>
+                <img src={item.gifLink} alt={item.gifLink} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+  }
 
   useEffect(() => {
     const onLoad = async () => {
