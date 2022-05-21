@@ -3,9 +3,14 @@ import twitterLogo from './assets/twitter-logo.svg';
 import './App.css';
 
 // Constants
-const TWITTER_HANDLE = '_buildspace';
+const TWITTER_HANDLE = 'danieldev0612';
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`;
 
+const TEST_GIFS = ["https://blog.hubspot.com/hubfs/Smiling%20Leo%20Perfect%20GIF.gif",
+                    "https://i.gifer.com/7rF1.gif",
+                    "https://i.gifer.com/NtJd.gif"
+                    ]
+                    
 const App = () => {
   const [walletAddress, setWalletAddress] = useState(null)
   const checkIfWalletIsConnected = async () => {
@@ -44,6 +49,18 @@ const App = () => {
     </button>
   )
 
+  const renderConnectedContainer = () => (
+    <div className="connected-container">
+      <div className="gif-grid">
+        {TEST_GIFS.map(gif => (
+          <div className="gif-item" key={gif}>
+            <img src={gif} alt={gif} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   useEffect(() => {
     const onLoad = async () => {
       await checkIfWalletIsConnected()
@@ -62,6 +79,7 @@ const App = () => {
             View your GIF collection in the metaverse ✨
           </p>
           {!walletAddress && renderNotConnectedContainer()}
+          {walletAddress && renderConnectedContainer()}
         </div>
         <div className="footer-container">
           <img alt="Twitter Logo" className="twitter-logo" src={twitterLogo} />
